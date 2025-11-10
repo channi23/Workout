@@ -1,27 +1,35 @@
-// Import JWT library
-const jwt = require("jsonwebtoken");
+const express = require('express');
+const app = express();
+const jwt = require('jsonwebtoken');
+const key = "MySecretKey";
+const port = 5000;
+const dbuser = {
+            "username" : "cse123",
+            "password" : "cvr123"
+      };
+      
+app.post("/",function(req,res)
+{
+      var u = req.query.username;
+      var p = req.query.password;
+      if(u == dbuser.username && p == dbuser.password)
+      {
+            jwt.sign(dbuser,key,function(err,token)
+            {
+                  res.json({token});
+                  res.end();
+            });
+      }
+      else
+      {
+            res.send("Invalid Credentials");
+            res.end();
+      }
+});
 
-// Secret key (used to sign and verify)
-const SECRET_KEY = "secret123";
+app.get("/",function(req,res){res.send("welcome to server")})
 
-// ---------------------
-// STEP 1: Generate Token
-// ---------------------
-const user = { username: "admin" }; // sample user
-const token = jwt.sign(user, SECRET_KEY, { expiresIn: "1h" });
-console.log("✅ Generated Token:\n", token);
-
-// ---------------------
-// STEP 2: Verify Token
-// ---------------------
-try {
-  const decoded = jwt.verify(token, SECRET_KEY);
-  console.log("\n✅ Token is valid!");
-  console.log("Decoded Data:", decoded);
-} catch (err) {
-  console.log("\n❌ Invalid Token:", err.message);
-}
-
-
-//after running the code
-//verify from this 
+app.listen(port, function()
+{
+      console.log("Server Started:"+port);
+});
