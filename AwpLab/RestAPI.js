@@ -1,53 +1,80 @@
 const http = require('http');
+const stu = require('./students.json');
 const fs = require('fs');
-const url = require ('url');
+const url = require('url');
+const port = 3001;
 
-const file = "./data.json";
-//define readDB and writeDB functions
-const readDB = ()=>JSON.parse(fs.readFileSync(file));
-const writeDB = (data) => fs.writeFileSync(file, JSON.stringify(data, null, 2));
+const server = http.createServer((req, res) => {
+    res.setHeader("Content-Type", "text/html");
 
-// Helper function to parse JSON body
-const parseBody = (req) => new Promise((resolve) => {
-    let body = '';
-    req.on('data', chunk => body += chunk);
-    req.on('end', () => resolve(body ? JSON.parse(body) : {}));
+    if (req.method == 'GET' && req.url == '/') {
+        res.write("<h1 style='color:red'>Welcome</h1>");
+        res.end();
+    }
+
+    if (req.method == 'GET' && req.url == "/list") {
+        fs.readFile("./students.json", function (err, data) {
+            if (err) {
+                res.writeHead(500, { "Content-Type": "text/plain" });
+                res.write("Error reading file");
+                res.end();
+                return;
+            }
+            res.write(data);
+            res.end();
+        });
+    }
+
+    if (req.method == 'POST') {
+        let newStu = url.parse(req.url, true).query;
+        stu.push(newStu);
+        mywrite(stu);
+        res.write("<h1>Student record added</h1>");
+        res.end();
+    }
+
+    if (req.method == 'PUT' && req.url == "/update") {
+        let upStu = url.parse(req.url, true).query;
+        for (let s in stu) {
+            if (stu[s]['roll'] == upStu['roll']) {
+                stu[s]['name'] = upStu['name'];
+                stu[s]['year'] = upStu['year'];
+                stu[s]['branch'] = upStu['branch'];
+                stu[s]['cgpa'] = upStu['cgpa'];
+                mywrite(stu);
+                res.write("Updated successfully");
+                res.end();
+                return;
+            }
+        }
+        res.write("Student not found");
+        res.end();
+    }
+
+    if (req.method == "DELETE") {
+        let delStu = url.parse(req.url, true).query;
+        for (let s in stu) {
+            if (stu[s]['roll'] == delStu['roll']) {
+                stu.splice(s, 1);
+                mywrite(stu);
+                res.write("Deleted");
+                res.end();
+                return;
+            }
+        }
+        res.write("Student not found");
+        res.end();
+    }
 });
 
-http.createServer(async (req, res) => {
-    const myUrl = new URL(req.url, `http://${req.headers.host}`);
-    const pathname = myUrl.pathname;
-    const id = parseInt(pathname.split('/')[2]);
-    const students = readDB();
+function mywrite(data) {
+    fs.writeFile("./students.json", JSON.stringify(data), function (err) {
+        if (err) {
+            console.error("Error writing file", err);
+        }
+    });
+}
 
-    res.setHeader('Content-Type', 'application/json');
-    if (req.method === 'GET' && pathname === '/students') {
-        return res.end(JSON.stringify(students));
-    }
-    if (req.method === 'GET' && pathname.startsWith('/students/')) {
-        const student = students.find(s => s.id === id);
-        return res.end(JSON.stringify(student || { message: 'Not found' }));
-    }
-    if (req.method === 'POST' && pathname === '/students') {
-        const data = await parseBody(req);
-        const student = { id: students.length ? students[students.length - 1].id + 1 : 1, ...data };
-        students.push(student);
-        writeDB(students);
-        return res.end(JSON.stringify(student));
-    }
-    if (req.method === 'PUT' && pathname.startsWith('/students/')) {
-        const data = await parseBody(req);
-        const student = students.find(s => s.id === id);
-        if (student) Object.assign(student, data);
-        writeDB(students);
-        return res.end(JSON.stringify(student || { message: 'Not found' }));
-    }
-    if (req.method === 'DELETE' && pathname.startsWith('/students/')) {
-        const index = students.findIndex(s => s.id == id);
-        if (index !== -1) students.splice(index, 1);
-        writeDB(students);
-        return res.end(JSON.stringify({ message: index !== -1 ? 'Deleted' : 'Not found' }));
-    }
-    res.end(JSON.stringify({ message: 'Route not found' }));
-}).listen(3000, () => console.log('Server running on port 3000'));
-
+server.listen(port, function () {
+    console.log("Server is running on port " + port);
+});
